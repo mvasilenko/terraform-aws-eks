@@ -308,3 +308,38 @@ module "vpc" {
 
   tags = local.tags
 }
+
+module "eks_aws_auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "~> 20.0"
+
+  manage_aws_auth_configmap = true
+
+  aws_auth_roles = [
+    {
+      rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${one(data.aws_iam_roles.sso_administrators.names)}"
+      username = one(data.aws_iam_roles.sso_administrators.names)
+      groups   = ["system:masters"]
+    },
+
+    {
+      rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${one(data.aws_iam_roles.sso_sre_team.names)}"
+      username = one(data.aws_iam_roles.sso_sre_team.names)
+      groups   = ["system:masters"]
+    },
+  ]
+}
+
+# provide administrator group in sso with full access to k8s cluster
+data "aws_iam_roles" "sso_administrators" {
+  name_regex  = "AWSReservedSSO_administrator-access*"
+  path_prefix = "/aws-reserved/sso.amazonaws.com/"
+}
+
+# provide administrator group in sso with full access to k8s cluster
+data "aws_iam_roles" "sso_sre_team" {
+  name_regex  = "AWSReservedSSO_sre-team-rw*"
+  path_prefix = "/aws-reserved/sso.amazonaws.com/"
+}
+
+data "aws_caller_identity" "current" {}
